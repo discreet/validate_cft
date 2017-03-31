@@ -24,12 +24,10 @@ if @options.profile.nil?
 end
 
 def get_files(path)
-  files = Array.new
-
   if File.dirname(__FILE__).eql?('.')
-    files = Dir.entries(path).select { |f| !File.directory? f}.select { |i| i =~ /\.json|\.yaml|\.yml/ }
+    Dir.entries(path).select { |f| !File.directory? f}.select { |i| i =~ /\.json|\.yaml|\.yml/ }
   else
-    files = Dir.glob("#{path}/*").select { |i| i =~ /\.json|\.yaml|\.yml/ }
+    Dir.glob("#{path}/*").select { |i| i =~ /\.json|\.yaml|\.yml/ }
   end
 end
 
@@ -40,7 +38,7 @@ def check_valid(file)
     cmd = "aws --profile #{@options.profile} cloudformation validate-template --template-body file://#{file}"
   end
 
-  Open3.popen3(cmd) do |_, stdout, stderr, _|
+  Open3.popen3(cmd) do |_, _, stderr, _|
     while err = stderr.gets
       puts "#{file}: #{err}"
     end
