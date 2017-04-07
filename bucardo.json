@@ -1,0 +1,259 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "AWS CloudFormation Template ",
+  "Parameters": {
+    "Environment": {
+      "AllowedValues": [
+        "dev"
+      ],
+      "Default": "dev",
+      "Description": "What environment type is it (prod, preprod, test)?",
+      "Type": "String"
+    },
+    "KeyName": {
+      "Default": "CoreEngine_Dev",
+      "Description": "What key file should be used for the instances? (PEM file)",
+      "Type": "String"
+    },
+    "OwnerEID": {
+      "Default": "XLU908",
+      "Description": "Application Owner EID to contact for any issues",
+      "Type": "String"
+    },
+    "OwnerContact": {
+      "Default": "colleen.kerr@capitalone.com",
+      "Description": "Feature Team Distribution List",
+      "Type": "String"
+    },
+    "FeatureTeam": {
+      "Default": "Autorizations - HyperCore",
+      "Description": "ORG - Team Name",
+      "Type": "String"
+    },
+    "Name": {
+      "Default": "HyperCore-MongoDB",
+      "Description": "What is the name of your instance?",
+      "Type": "String"
+    },
+    "InstanceType": {
+      "Type": "String",
+      "Default": "m4.xlarge",
+      "AllowedValues": [
+        "m4.xlarge"
+      ]
+    },
+    "ArtifactName": {
+      "Type": "String",
+      "Default": "No default value is set",
+      "Description": "Enter the name of the artifact"
+    }
+  },
+  "Mappings": {
+    "Environment": {
+      "dev": {
+        "AvailabilityZone": "us-east-1a",
+        "Subnets": "subnet-9cdf9ac5",
+        "IAMProfile": "CapOne-Card-Dev-CustomRole-CoreEngine",
+        "AMI": "ami-548c7542",
+        "Keypair": "CoreEngine_Dev",
+        "SecurityGroup": [
+          "sg-00d88764",
+          "sg-e07ce199"
+        ],
+        "PlacementGroupName": "AuthControl-Dev-us-east-1a"
+      }
+    }
+  },
+  "Resources": {
+    "DevelopmentStack": {
+      "Type": "AWS::EC2::Instance",
+      "Metadata": {
+        "Comment": "CloudFormation Stack for running acceptance tests"
+      },
+      "Properties": {
+        "PlacementGroupName": {
+          "Fn::FindInMap": [
+            "Environment",
+            {
+              "Ref": "Environment"
+            },
+            "PlacementGroupName"
+          ]
+        },
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/sda1",
+            "Ebs": {
+              "VolumeSize": "500",
+              "DeleteOnTermination": "true"
+            }
+          }
+        ],
+        "ImageId": {
+          "Fn::FindInMap": [
+            "Environment",
+            {
+              "Ref": "Environment"
+            },
+            "AMI"
+          ]
+        },
+        "InstanceType": {
+          "Ref": "InstanceType"
+        },
+        "IamInstanceProfile": {
+          "Fn::FindInMap": [
+            "Environment",
+            {
+              "Ref": "Environment"
+            },
+            "IAMProfile"
+          ]
+        },
+        "KeyName": {
+          "Fn::FindInMap": [
+            "Environment",
+            {
+              "Ref": "Environment"
+            },
+            "Keypair"
+          ]
+        },
+        "SecurityGroupIds": {
+          "Fn::FindInMap": [
+            "Environment",
+            {
+              "Ref": "Environment"
+            },
+            "SecurityGroup"
+          ]
+        },
+        "AvailabilityZone": {
+          "Fn::FindInMap": [
+            "Environment",
+            {
+              "Ref": "Environment"
+            },
+            "AvailabilityZone"
+          ]
+        },
+        "SubnetId": {
+          "Fn::FindInMap": [
+            "Environment",
+            {
+              "Ref": "Environment"
+            },
+            "Subnets"
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  "HyperCore",
+                  "Bucardo",
+                  {
+                    "Ref": "Environment"
+                  }
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "OwnerContact",
+            "Value": "xlu908"
+          },
+          {
+            "Key": "Environment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          },
+          {
+            "Key": "CMDBEnvironment",
+            "Value": "ENVNPCARDCONTROLS"
+          },
+          {
+            "Key": "ASV",
+            "Value": "ASVAUTHCONTROL"
+          },
+          {
+            "Key": "ArtifactName",
+            "Value": {
+              "Ref": "ArtifactName"
+            }
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "\n",
+              [
+                "#!/bin/bash -v",
+                "export HTTPS_PROXY=http://proxy.kdc.capitalone.com:8099",
+                "export HTTP_PROXY=$HTTPS_PROXY",
+                "export http_proxy=$HTTPS_PROXY",
+                "export https_proxy=$HTTPS_PROXY",
+                "export NO_PROXY=169.254.169.254,s3.amazonaws.com",
+                "export no_proxy=169.254.169.254,s3.amazonaws.com",
+                "apt-get -y install yum",
+                "yum -y install git",
+                "yum -y install vim",
+                "yum -y install tar",
+                "yum -y install perl-devel",
+                "sudo mkdir -p /var/log/bucardo /var/run/bucardo",
+                "sudo chown $USER:$USER /var/log/bucardo /var/run/bucardo",
+                "cd /usr/share/",
+                "aws s3 cp s3://core-engine/DBIx-Safe-1.2.5.tar.gz DBIx-Safe-1.2.5.tar.gz",
+                "aws s3 cp s3://core-engine/Bucardo-5.4.1.tar.gz Bucardo-5.4.1.tar.gz",
+                "aws s3 cp s3://core-engine/Test-Simple-1.302075.tar.gz Test-Simple-1.302075.tar.gz",
+                "aws s3 cp s3://core-engine/boolean-0.46.tar.gz boolean-0.46.tar.gz",
+                "yum -y install perl-Pod-Parser",
+                "yum -y install perl-DBD-Pg",
+                "yum -y install postgresql-plperl",
+                "sudo apt-get install libdbi-perl libdbd-pg-perl libboolean-perl wget build-essential libreadline-dev libz-dev autoconf bison libtool libgeos-c1 libproj-dev libgdal-dev libxml2-dev libxml2-utils libjson0-dev xsltproc docbook-xsl docbook-mathml libossp-uuid-dev libperl-dev libdbix-safe-perl postgresql postgresql-plperl ",
+                "tar xvfz boolean-0.46.tar.gz",
+                "cd boolean-0.46",
+                "perl Makefile.PL",
+                "make",
+                "sudo make install",
+                "cd /usr/share/",
+                "tar xvfz Test-Simple-1.302075.tar.gz",
+                "cd Test-Simple-1.302075",
+                "perl Makefile.PL",
+                "make",
+                "sudo make install",
+                "cd /usr/share/",
+                "tar xvfz DBIx-Safe-1.2.5.tar.gz",
+                "cd DBIx-Safe-1.2.5",
+                "perl Makefile.PL",
+                "make",
+                "sudo make install",
+                "cd /usr/share/",
+                "tar xvfz Bucardo-5.4.1.tar.gz",
+                "cd Bucardo-5.4.1",
+                "perl Makefile.PL",
+                "make",
+                "sudo make install",
+                "cd /usr/share/",
+                "aws s3 cp s3://core-engine/postgresql-9.6.1.tar.gz postgresql-9.6.1.tar.gz",
+                "tar xvfz postgresql-9.6.1.tar.gz",
+                "cat > $HOME/.bucardorc <<EOL",
+                "dbhost=127.0.0.1",
+                "dbname=bucardo",
+                "dbport=5432",
+                "dbuser=bucardo",
+                "EOL",
+                "echo \"127.0.0.1:5432:bucardo:bucardo:bucardo-runner\" > $HOME/.pgpass",
+                "chmod 0600 $HOME/.pgpass"
+              ]
+            ]
+          }
+        }
+      }
+    }
+  }
+}

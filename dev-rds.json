@@ -1,0 +1,233 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "AWS CloudFormation Template RDS_PostgreSQL_With_Read_Replica",
+  "Parameters": {
+    "DBName": {
+      "Default": "authcontrol",
+      "Description": "The database name",
+      "Type": "String",
+      "MinLength": "5",
+      "MaxLength": "64",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
+      "ConstraintDescription": "must begin with a letter and contain only alphanumeric characters."
+    },
+    "TeamName": {
+      "Type": "String",
+      "Default": "hypercore",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*"
+    },
+    "DBUser": {
+      "NoEcho": "true",
+      "Default": "authcontrol",
+      "Description": "The database admin account username",
+      "Type": "String",
+      "MinLength": "5",
+      "MaxLength": "16",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
+      "ConstraintDescription": "must begin with a letter and contain only alphanumeric characters."
+    },
+    "DBPassword": {
+      "NoEcho": "true",
+      "Default": "authcontrol",
+      "Description": "The database admin account password",
+      "Type": "String",
+      "MinLength": "5",
+      "MaxLength": "41",
+      "AllowedPattern": "[a-zA-Z0-9]+",
+      "ConstraintDescription": "must contain only alphanumeric characters."
+    },
+    "DBAllocatedStorage": {
+      "Default": "100",
+      "Description": "The size of the database (Gb)",
+      "Type": "Number",
+      "MinValue": "100",
+      "MaxValue": "1024",
+      "ConstraintDescription": "must be between 100 and 1024Gb."
+    },
+    "DBInstanceClass": {
+      "Description": "The database instance type",
+      "Type": "String",
+      "Default": "db.m4.4xlarge",
+      "AllowedValues": [
+        "db.t1.micro",
+        "db.m1.small",
+        "db.m1.medium",
+        "db.m1.large",
+        "db.m1.xlarge",
+        "db.m2.xlarge",
+        "db.m2.2xlarge",
+        "db.m2.4xlarge",
+        "db.m3.medium",
+        "db.m3.large",
+        "db.m3.xlarge",
+        "db.m3.2xlarge",
+        "db.m4.large",
+        "db.m4.xlarge",
+        "db.m4.2xlarge",
+        "db.m4.4xlarge",
+        "db.m4.10xlarge",
+        "db.r3.large",
+        "db.r3.xlarge",
+        "db.r3.2xlarge",
+        "db.r3.4xlarge",
+        "db.r3.8xlarge",
+        "db.m2.xlarge",
+        "db.m2.2xlarge",
+        "db.m2.4xlarge",
+        "db.cr1.8xlarge",
+        "db.t2.micro",
+        "db.t2.small",
+        "db.t2.medium",
+        "db.t2.large"
+      ],
+      "ConstraintDescription": "must select a valid database instance type."
+    },
+    "MultiAZ": {
+      "Description": "Multi-AZ master database",
+      "Type": "String",
+      "Default": "true",
+      "AllowedValues": [
+        "true",
+        "false"
+      ],
+      "ConstraintDescription": "must be true or false."
+    }
+  },
+  "Resources": {
+    "MasterDB": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "DBName": {
+          "Ref": "DBName"
+        },
+        "AllocatedStorage": {
+          "Ref": "DBAllocatedStorage"
+        },
+        "AllowMajorVersionUpgrade": true,
+        "AutoMinorVersionUpgrade": true,
+        "DBInstanceClass": {
+          "Ref": "DBInstanceClass"
+        },
+        "DBInstanceIdentifier": {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "DBName"
+              },
+              {
+                "Ref": "TeamName"
+              },
+              "dev"
+            ]
+          ]
+        },
+        "Engine": "postgres",
+        "EngineVersion": "9.5.2",
+        "MasterUsername": {
+          "Ref": "DBUser"
+        },
+        "MasterUserPassword": {
+          "Ref": "DBPassword"
+        },
+        "MultiAZ": {
+          "Ref": "MultiAZ"
+        },
+        "DBSubnetGroupName": "default-vpc-f98ff19c",
+        "MonitoringInterval": 60,
+        "MonitoringRoleArn": "arn:aws:iam::685250009713:role/rds-monitoring-role",
+        "PubliclyAccessible": false,
+        "StorageEncrypted": true,
+        "StorageType": "gp2",
+        "KmsKeyId": "arn:aws:kms:us-east-1:685250009713:key/bec47e37-c24f-4220-8e01-76a225e9705a",
+        "VPCSecurityGroups": [
+          "sg-00d88764"
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Ref": "DBName"
+            }
+          },
+          {
+            "Key": "OwnerContact",
+            "Value": "zeel.jha@capitalone.com"
+          },
+          {
+            "Key": "OwnerEID",
+            "Value": "JJL768"
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "CMDBEnvironment",
+            "Value": "ENVNPCARDCONTROLS"
+          },
+          {
+            "Key": "ASV",
+            "Value": "ASVCARDCONTROLS"
+          }
+        ]
+      },
+      "DeletionPolicy": "Snapshot"
+    },
+    "ReplicaDB": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "SourceDBInstanceIdentifier": {
+          "Ref": "MasterDB"
+        },
+        "DBInstanceClass": {
+          "Ref": "DBInstanceClass"
+        },
+        "StorageType": "gp2",
+        "AvailabilityZone": "us-east-1c",
+        "DBInstanceIdentifier": {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "DBName"
+              },
+              "dev",
+              "rr"
+            ]
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Ref": "DBName"
+            }
+          },
+          {
+            "Key": "OwnerContact",
+            "Value": "zeel.jha@capitalone.com"
+          },
+          {
+            "Key": "OwnerEID",
+            "Value": "JJL768"
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "CMDBEnvironment",
+            "Value": "ENVNPCARDCONTROLS"
+          },
+          {
+            "Key": "ASV",
+            "Value": "ASVCARDCONTROLS"
+          }
+        ]
+      }
+    }
+  }
+}
